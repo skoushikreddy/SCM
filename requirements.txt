@@ -1,0 +1,3 @@
+# CodeGuard-SCM Python Requirements
+# Core AST import analysis and regression test execution rely on Python's built-in standard library (ast, unittest, sys, os).
+# No external pip dependencies are required for base operation.

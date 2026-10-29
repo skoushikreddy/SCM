@@ -4,6 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import { execFile } from 'child_process';
 import multer from 'multer';
+import dotenv from 'dotenv';
 import { processFolderUpload, validateRelativePath, UploadedFileItem } from './src/upload_handler.js';
 import { getGitRepoStatus, getRealGitCommits } from './src/scm_engine.js';
 import { buildDependencyGraph } from './src/dependency_analyzer.js';
@@ -11,9 +12,11 @@ import { discoverTestFiles } from './src/test_runner.js';
 import { runScmPipeline, runFolderSnapshotAnalysis } from './src/scm_pipeline.js';
 import { globalStore, CommitRecord } from './src/analysis_store.js';
 
+dotenv.config();
+
 const app = express();
-const PORT = 3000;
-const HOST = '0.0.0.0';
+const PORT = parseInt(process.env.PORT || '3000', 10);
+const HOST = process.env.HOST || '0.0.0.0';
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -621,6 +624,26 @@ app.get('/api/system-status', async (req, res) => {
   });
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`CodeGuard server running at http://${HOST}:${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`\n======================================================`);
+  console.log(`  CodeGuard-SCM Server Running Successfully!`);
+  console.log(`  - Local Access:      http://localhost:${PORT}`);
+  console.log(`  - Loopback IP:       http://127.0.0.1:${PORT}`);
+  console.log(`  - Network Interface: http://${HOST}:${PORT}`);
+  console.log(`======================================================\n`);
+});
+
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n[CodeGuard Startup Error] Port ${PORT} is already occupied by another process.`);
+    console.error(`Safe resolution options:`);
+    console.error(`  1. In Windows PowerShell, find and stop the process occupying port ${PORT}:`);
+    console.error(`     Get-Process -Id (Get-NetTCPConnection -LocalPort ${PORT}).OwningProcess | Stop-Process -Force`);
+    console.error(`  2. Or run on an alternative port by setting the PORT environment variable:`);
+    console.error(`     $env:PORT="3001"; npm run dev\n`);
+    process.exit(1);
+  } else {
+    console.error(`\n[CodeGuard Startup Error] Failed to bind to ${HOST}:${PORT}:`, err);
+    process.exit(1);
+  }
 });
